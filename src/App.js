@@ -1,6 +1,6 @@
 /* src/App.js */
 import React, { useEffect, useState } from 'react'
-import Amplify, { API, graphqlOperation } from 'aws-amplify'
+import Amplify, { API, graphqlOperation, Auth } from 'aws-amplify'
 import { withAuthenticator, AmplifySignOut } from '@aws-amplify/ui-react'
 import { createTodo } from './graphql/mutations'
 import { listTodos } from './graphql/queries'
@@ -11,11 +11,12 @@ Amplify.configure(awsExports);
 const initialState = { name: '', description: '' }
 
 const App = () => {
-  const [formState, setFormState] = useState(initialState)
-  const [todos, setTodos] = useState([])
+  const [formState, setFormState] = useState(initialState);
+  const [todos, setTodos] = useState([]);
+  const [userState, setUserState] = useState({});
 
   useEffect(() => {
-    fetchTodos()
+    fetchTodos();  
   }, [])
 
   function setInput(key, value) {
@@ -24,9 +25,12 @@ const App = () => {
 
   async function fetchTodos() {
     try {
-      const todoData = await API.graphql(graphqlOperation(listTodos))
-      const todos = todoData.data.listTodos.items
-      setTodos(todos)
+      const todoData = await API.graphql(graphqlOperation(listTodos));
+      const todos = todoData.data.listTodos.items;
+      setTodos(todos);
+
+      let loggedInUser = await Auth.currentAuthenticatedUser();
+      setUserState({ ...loggedInUser });
     } catch (err) { console.log('error fetching todos') }
   }
 
@@ -36,7 +40,10 @@ const App = () => {
       const todo = { ...formState }
       setTodos([...todos, todo])
       setFormState(initialState)
-      await API.graphql(graphqlOperation(createTodo, {input: todo}))
+      await API.graphql(graphqlOperation(createTodo, {input: todo}));
+      
+      // Added for testing purposes
+      setUserState({ ...userState, ['username']: todo.name });
     } catch (err) {
       console.log('error creating todo:', err)
     }
@@ -68,7 +75,10 @@ const App = () => {
       }
       <div style={styles.logOutButton}>
         <AmplifySignOut />
-      </div>      
+      </div>
+      <br />
+      <p>Last TODO name is</p>
+      <div>{userState.username}</div>    
     </div>
   )
 }
@@ -80,7 +90,7 @@ const styles = {
   todoName: { fontSize: 20, fontWeight: 'bold' },
   todoDescription: { marginBottom: 0 },
   button: { backgroundColor: 'black', color: 'white', outline: 'none', fontSize: 18, padding: '12px 0px' },
-  logOutButton: { 'text-align': 'right' }
+  logOutButton: {  }
 }
 
 export default withAuthenticator(App);
